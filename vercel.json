@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm install && pnpm --filter @workspace/api-spec run codegen && pnpm --filter @workspace/viral-clips run build",
+  "outputDirectory": "artifacts/viral-clips/dist/public",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" }
+  ],
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 300,
+      "memory": 3008
+    }
+  }
+}

@@ -1,0 +1,252 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: Viral Clip Maker API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: clips
+    description: Video clip extraction and analysis
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /clips/analyze:
+    post:
+      operationId: analyzeVideo
+      tags: [clips]
+      summary: Analyze video and create clip jobs
+      description: Takes a YouTube/video URL, number of clips, and clip duration, creates processing jobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeVideoRequest"
+      responses:
+        "200":
+          description: Job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeVideoResponse"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /clips/jobs/{jobId}:
+    get:
+      operationId: getJobStatus
+      tags: [clips]
+      summary: Get job status and results
+      description: Poll for clip processing job status and results
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobStatusResponse"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /clips/jobs:
+    get:
+      operationId: listJobs
+      tags: [clips]
+      summary: List all jobs
+      description: List recent clip processing jobs
+      responses:
+        "200":
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobSummary"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    AnalyzeVideoRequest:
+      type: object
+      properties:
+        videoUrl:
+          type: string
+          description: YouTube or video URL
+        clipCount:
+          type: integer
+          description: Number of clips to generate (1-10)
+          minimum: 1
+          maximum: 10
+        clipDuration:
+          type: integer
+          description: Duration of each clip in seconds (30, 40, or 60)
+          enum: [30, 40, 60]
+      required:
+        - videoUrl
+        - clipCount
+        - clipDuration
+
+    AnalyzeVideoResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+        message:
+          type: string
+        status:
+          type: string
+      required:
+        - jobId
+        - message
+        - status
+
+    ClipResult:
+      type: object
+      properties:
+        clipIndex:
+          type: integer
+        startTime:
+          type: number
+        endTime:
+          type: number
+        duration:
+          type: number
+        downloadUrl:
+          type: string
+        filename:
+          type: string
+        viralScore:
+          type: integer
+          description: Viral potential score 0-100
+        viralAnalysis:
+          type: string
+          description: AI analysis of viral potential
+        viralFactors:
+          type: array
+          items:
+            type: string
+          description: Key factors contributing to viral score
+      required:
+        - clipIndex
+        - startTime
+        - endTime
+        - duration
+        - downloadUrl
+        - filename
+        - viralScore
+        - viralAnalysis
+        - viralFactors
+
+    JobStatusResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+          enum: [pending, downloading, processing, analyzing, done, failed]
+        progress:
+          type: integer
+          description: Progress percentage 0-100
+        message:
+          type: ["string", "null"]
+        videoTitle:
+          type: ["string", "null"]
+        videoDuration:
+          type: ["number", "null"]
+        clips:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClipResult"
+        error:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - jobId
+        - status
+        - progress
+        - message
+        - videoTitle
+        - videoDuration
+        - clips
+        - error
+        - createdAt
+
+    JobSummary:
+      type: object
+      properties:
+        jobId:
+          type: string
+        status:
+          type: string
+        videoUrl:
+          type: string
+        clipCount:
+          type: integer
+        clipDuration:
+          type: integer
+        videoTitle:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - jobId
+        - status
+        - videoUrl
+        - clipCount
+        - clipDuration
+        - videoTitle
+        - createdAt
