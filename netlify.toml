@@ -1,0 +1,13 @@
+[build]
+  command = "pnpm install && pnpm --filter @workspace/api-spec run codegen && pnpm --filter @workspace/viral-clips run build"
+  publish = "artifacts/viral-clips/dist/public"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
