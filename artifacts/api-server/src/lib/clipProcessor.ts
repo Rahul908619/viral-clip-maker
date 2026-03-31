@@ -53,6 +53,63 @@ function ensureClipsDir() {
   }
 }
 
+/**
+ * Normalize any YouTube URL format to the standard watch URL.
+ * Handles:
+ *   - https://www.youtube.com/watch?v=VIDEO_ID
+ *   - https://youtu.be/VIDEO_ID
+ *   - https://youtu.be/VIDEO_ID?si=SHARE_TOKEN
+ *   - https://www.youtube.com/watch?v=VIDEO_ID&t=30s
+ *   - https://m.youtube.com/watch?v=VIDEO_ID
+ *   - https://youtube.com/shorts/VIDEO_ID
+ *   - https://www.youtube.com/embed/VIDEO_ID
+ */
+export function normalizeYouTubeUrl(rawUrl: string): string {
+  let url: URL;
+  try {
+    url = new URL(rawUrl.trim());
+  } catch {
+    return rawUrl;
+  }
+
+  const hostname = url.hostname.replace(/^www\./, "").replace(/^m\./, "");
+
+  // youtu.be short links: https://youtu.be/VIDEO_ID
+  if (hostname === "youtu.be") {
+    const videoId = url.pathname.slice(1).split("/")[0];
+    if (videoId) {
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+  }
+
+  if (hostname === "youtube.com") {
+    // YouTube Shorts: /shorts/VIDEO_ID
+    if (url.pathname.startsWith("/shorts/")) {
+      const videoId = url.pathname.replace("/shorts/", "").split("/")[0];
+      if (videoId) {
+        return `https://www.youtube.com/watch?v=${videoId}`;
+      }
+    }
+
+    // Embed URLs: /embed/VIDEO_ID
+    if (url.pathname.startsWith("/embed/")) {
+      const videoId = url.pathname.replace("/embed/", "").split("/")[0];
+      if (videoId) {
+        return `https://www.youtube.com/watch?v=${videoId}`;
+      }
+    }
+
+    // Standard watch URL — strip extra params but keep v=
+    const videoId = url.searchParams.get("v");
+    if (videoId) {
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+  }
+
+  // Unknown format — return as-is and let ytdl try
+  return rawUrl;
+}
+
 function analyzeClipForViral(startTime: number, duration: number, videoDuration: number): {
   score: number;
   analysis: string;
@@ -118,7 +175,8 @@ function analyzeClipForViral(startTime: number, duration: number, videoDuration:
 }
 
 async function getVideoInfo(url: string): Promise<{ title: string; duration: number }> {
-  const info = await ytdl.getInfo(url);
+  const normalizedUrl = normalizeYouTubeUrl(url);
+  const info = await ytdl.getInfo(normalizedUrl);
   return {
     title: info.videoDetails.title,
     duration: parseInt(info.videoDetails.lengthSeconds, 10)
@@ -126,9 +184,11 @@ async function getVideoInfo(url: string): Promise<{ title: string; duration: num
 }
 
 async function downloadVideo(url: string, videoPath: string, audioPath: string): Promise<void> {
+  const normalizedUrl = normalizeYouTubeUrl(url);
+
   // Download video-only stream
   await new Promise<void>((resolve, reject) => {
-    const stream = ytdl(url, {
+    const stream = ytdl(normalizedUrl, {
       quality: "highestvideo",
       filter: "videoonly"
     });
@@ -139,7 +199,7 @@ async function downloadVideo(url: string, videoPath: string, audioPath: string):
 
   // Download audio-only stream
   await new Promise<void>((resolve, reject) => {
-    const stream = ytdl(url, {
+    const stream = ytdl(normalizedUrl, {
       quality: "highestaudio",
       filter: "audioonly"
     });

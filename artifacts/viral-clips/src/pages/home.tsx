@@ -16,8 +16,15 @@ import { HistorySidebar } from "@/components/history-sidebar";
 import { useToast } from "@/hooks/use-toast";
 import { Flame, Youtube, Scissors, Loader2, Sparkles } from "lucide-react";
 
+const YOUTUBE_URL_REGEX = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/|embed\/)|youtu\.be\/)[\w-]{11}/;
+
 const formSchema = z.object({
-  videoUrl: z.string().url({ message: "Please enter a valid URL." }),
+  videoUrl: z
+    .string()
+    .min(1, { message: "Please enter a YouTube URL." })
+    .refine((val) => YOUTUBE_URL_REGEX.test(val), {
+      message: "Please enter a valid YouTube URL (youtube.com or youtu.be).",
+    }),
   clipDuration: z.enum(["30", "40", "60"]),
   clipCount: z.number().min(1).max(10),
 });
